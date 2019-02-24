@@ -5,6 +5,7 @@
 @author t-sakai
 @date 2008/11/13 create
 */
+#include <functional>
 #include "common.h"
 //#define TREE_AVLTREE_ENABLE_DEBUGPRINT
 
@@ -84,6 +85,9 @@ namespace tree
 
         iterator_type find(const value_type& value) const;
         inline iterator_type find(const value_type& value);
+
+        iterator_type find(const value_type& value, std::function<s32(const T&, const T&)> comp) const;
+        inline iterator_type find(const value_type& value, std::function<s32(const T&, const T&)> comp);
 
         inline iterator_type end() const;
 
@@ -216,6 +220,33 @@ namespace tree
         AVLTree<T, Allocator, Comparator>::find(const value_type& value)
     {
         return static_cast<const this_type*>(this)->find(value);
+    }
+
+    //---------------------------------------------------------------
+    template<class T, class Allocator, class Comparator>
+    typename AVLTree<T, Allocator, Comparator>::iterator_type
+        AVLTree<T, Allocator, Comparator>::find(const value_type& value, std::function<s32(const T&, const T&)> comp) const
+    {
+        s32 node = root_;
+        while(0 <= node){
+            s32 cmp = comp(nodes_[node].value_, value);
+            if(cmp == 0){
+                return node;
+            } else if(cmp<0){
+                node = nodes_[node].right_;
+            } else{
+                node = nodes_[node].left_;
+            }
+        }
+        return node;
+    }
+
+    //---------------------------------------------------------------
+    template<class T, class Allocator, class Comparator>
+    inline typename AVLTree<T, Allocator, Comparator>::iterator_type
+        AVLTree<T, Allocator, Comparator>::find(const value_type& value, std::function<s32(const T&, const T&)> comp)
+    {
+        return static_cast<const this_type*>(this)->find(value, comp);
     }
 
     //---------------------------------------------------------------
@@ -378,6 +409,7 @@ namespace tree
         clearInternal(right);
     }
 
+    //---------------------------------------------------------------
     template<class T, class Allocator, class Comparator>
     s32 AVLTree<T,Allocator,Comparator>::insertInternal(s32 node, value_type&& value)
     {
