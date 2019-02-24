@@ -80,20 +80,17 @@ namespace tree
         AVLTree();
         ~AVLTree();
 
-        s32 size() const;
+        inline s32 size() const;
 
         iterator_type find(const value_type& value) const;
-        iterator_type find(const value_type& value)
-        {
-            return static_cast<const this_type*>(this)->find(value);
-        }
+        inline iterator_type find(const value_type& value);
 
-        iterator_type end() const;
+        inline iterator_type end() const;
 
-        const value_type& get(iterator_type pos) const;
-        value_type& get(iterator_type pos);
+        inline const value_type& get(iterator_type pos) const;
+        inline value_type& get(iterator_type pos);
 
-        void insert(value_type&& value);
+        inline void insert(value_type&& value);
         void remove(const value_type& value);
         void clear();
 
@@ -189,6 +186,13 @@ namespace tree
 
     //---------------------------------------------------------------
     template<class T, class Allocator, class Comparator>
+    inline s32 AVLTree<T, Allocator, Comparator>::size() const
+    {
+        return size_;
+    }
+
+    //---------------------------------------------------------------
+    template<class T, class Allocator, class Comparator>
     typename AVLTree<T,Allocator,Comparator>::iterator_type
         AVLTree<T,Allocator,Comparator>::find(const value_type& value) const
     {
@@ -208,21 +212,29 @@ namespace tree
 
     //---------------------------------------------------------------
     template<class T, class Allocator, class Comparator>
-    typename AVLTree<T,Allocator,Comparator>::iterator_type
+    inline typename AVLTree<T, Allocator, Comparator>::iterator_type
+        AVLTree<T, Allocator, Comparator>::find(const value_type& value)
+    {
+        return static_cast<const this_type*>(this)->find(value);
+    }
+
+    //---------------------------------------------------------------
+    template<class T, class Allocator, class Comparator>
+    inline typename AVLTree<T,Allocator,Comparator>::iterator_type
         AVLTree<T,Allocator,Comparator>::end() const
     {
         return -1;
     }
 
     template<class T, class Allocator, class Comparator>
-    const typename AVLTree<T, Allocator, Comparator>::value_type&
+    inline const typename AVLTree<T, Allocator, Comparator>::value_type&
         AVLTree<T, Allocator, Comparator>::get(iterator_type pos) const
     {
         return nodes_[pos].value_;
     }
 
     template<class T, class Allocator, class Comparator>
-    typename AVLTree<T, Allocator, Comparator>::value_type&
+    inline typename AVLTree<T, Allocator, Comparator>::value_type&
         AVLTree<T, Allocator, Comparator>::get(iterator_type pos)
     {
         return nodes_[pos].value_;
@@ -254,7 +266,7 @@ namespace tree
     }
 
     template<class T, class Allocator, class Comparator>
-    void AVLTree<T,Allocator,Comparator>::insert(value_type&& value)
+    inline void AVLTree<T,Allocator,Comparator>::insert(value_type&& value)
     {
         root_ = insertInternal(root_, tree::move(value));
     }
