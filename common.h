@@ -98,6 +98,16 @@ namespace tree
 
 #endif
 
+    using std::move;
+
+    template<class T>
+    void swap(T& x0, T& x1)
+    {
+        T t(move(x0));
+        x0 = move(x1);
+        x1 = move(t);
+    }
+
     //---------------------------------------------------------
     struct DefaultAllocator
     {

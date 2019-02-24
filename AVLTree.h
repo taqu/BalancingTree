@@ -1,15 +1,15 @@
-﻿#ifndef INC_TREE_AVLTREE_H__
-#define INC_TREE_AVLTREE_H__
+﻿#ifndef INC_TREE_AVLTREE_H_
+#define INC_TREE_AVLTREE_H_
 /**
 @file AVLTree.h
 @author t-sakai
 @date 2008/11/13 create
 */
 #include "common.h"
+//#define TREE_AVLTREE_ENABLE_DEBUGPRINT
 
 namespace tree
 {
-
     enum AVLSub
     {
         AVLSub_Left=0,
@@ -18,89 +18,36 @@ namespace tree
 
     //---------------------------------------------------------------
     //---
-    //--- AVLNodeBase
+    //--- AVLNode
     //---
     //---------------------------------------------------------------
-    template<class Derived>
-    class AVLNodeRoot
-    {
-    public:
-        typedef Derived this_type;
-        /// コンストラクタ
-        AVLNodeRoot()
-            :left_(NULL)
-            ,right_(NULL)
-        {}
-
-        /// コンストラクタ
-        AVLNodeRoot(this_type* left, this_type* right)
-            :left_(left)
-            ,right_(right)
-        {}
-
-        /// デストラクタ
-        ~AVLNodeRoot()
-        {}
-
-        this_type*& sub(s32 s){ return (s==AVLSub_Left)? left_ : right_;}
-
-        /// 左部分木
-        this_type* left_;
-
-        /// 右部分木
-        this_type* right_;
-    };
-
-    /// ノード基底
     template<class T>
-    class AVLNodeBase : public AVLNodeRoot<AVLNodeBase<T> >
+    class AVLNode
     {
     public:
-        typedef  AVLNodeRoot<AVLNodeBase<T> > base_type;
-        typedef AVLNodeBase<T> this_type;
+        s32& getSub(s32 s){ return (s==AVLSub_Left)? left_ : right_;}
 
-        /// コンストラクタ
-        AVLNodeBase()
-            :balance_(0)
-        {}
-
-        /// コンストラクタ
-        AVLNodeBase(this_type* left, this_type* right, const T& value)
-            :AVLNodeRoot(left, right)
-            ,balance_(0)
-            ,value_(value)
-        {}
-
-        /// デストラクタ
-        ~AVLNodeBase()
-        {}
-
-        const T& getValue() const{ return value_;}
-        T& getValue(){ return value_;}
-        void setValue(const T& value){ value_ = value;}
-
-        /// バランス
         s32 balance_;
-
+        s32 left_;
+        s32 right_;
         T value_;
     };
 
-    template<class T>
     struct DefaultAVLAllocator
     {
-        typedef AVLNodeBase<T> node_type;
-
         DefaultAVLAllocator()
         {}
 
-        inline node_type* create(const T& value)
+        template<class T>
+        inline T* malloc(u32 size)
         {
-            return TNEW node_type(NULL, NULL, value);
+            return reinterpret_cast<T*>(DefaultAllocator::malloc(size));
         }
 
-        inline void destroy(node_type*& node)
+        template<class T>
+        inline void free(T* mem)
         {
-            TDELETE(node);
+            return DefaultAllocator::free(mem);
         }
     };
 
@@ -110,7 +57,7 @@ namespace tree
     //---
     //---------------------------------------------------------------
     /// AVL木
-    template<class T, class Allocator=DefaultAVLAllocator<T>, class Comparator=DefaultComparator<T> >
+    template<class T, class Allocator=DefaultAVLAllocator, class Comparator=DefaultComparator<T> >
     class AVLTree
     {
     public:
@@ -123,57 +70,99 @@ namespace tree
         typedef const T& const_reference;
         typedef T value_type;
         typedef AVLTree this_type;
-        typedef AVLNodeBase<T> node_type;
+        typedef AVLNode<T> node_type;
 
         typedef Allocator allocator_type;
         typedef Comparator comparator_type;
 
+        typedef s32 iterator_type;
+
         AVLTree();
         ~AVLTree();
 
-        bool isEmpty() const{ return (NULL == root_);}
+        s32 size() const;
 
-        pointer find(const value_type& value);
-        const_pointer find(const value_type& value) const;
+        iterator_type find(const value_type& value) const;
+        iterator_type find(const value_type& value)
+        {
+            return static_cast<const this_type*>(this)->find(value);
+        }
 
-        void insert(const value_type& value);
+        iterator_type end() const;
+
+        const value_type& get(iterator_type pos) const;
+        value_type& get(iterator_type pos);
+
+        void insert(value_type&& value);
         void remove(const value_type& value);
         void clear();
 
         void swap(AVLTree& rhs);
 
-        s32 check() const;
+#ifdef TREE_AVLTREE_ENABLE_DEBUGPRINT
         void print();
+#endif
     private:
-        AVLTree(const AVLTree&);
-        AVLTree& operator=(const AVLTree&);
+        AVLTree(const AVLTree&) = delete;
+        AVLTree& operator=(const AVLTree&) = delete;
 
         struct Step
         {
-            node_type* node_;
+            s32 node_;
             s32 which_;
         };
 
-        void updateBalance(node_type* node);
+        void updateBalance(s32 node);
 
-        node_type* insertInternal(node_type* node, const value_type& value);
-        node_type* balanceInsert(node_type* node, Step* path, s32 numLevels);
+        s32 insertInternal(s32 node, value_type&& value);
+        s32 balanceInsert(s32 node, Step* path, s32 numLevels);
 
-        node_type* findInternal(node_type* node, Step* path, s32& level, const value_type& value);
+        s32 findInternal(s32 node, Step* path, s32& level, const value_type& value);
 
         void balanceRemove(Step* path, s32 numLevels);
 
-        void clearInternal(node_type*& node);
+        void clearInternal(s32 node);
 
-        void printInternal(const node_type* node, s32 level) const;
+#ifdef TREE_AVLTREE_ENABLE_DEBUGPRINT
+        void printInternal(s32 node, s32 level) const;
+#endif
 
-        /// 右回転
-        node_type* rotateRight(node_type* node);
+        /// Rotate right
+        s32 rotateRight(s32 node);
 
-        /// 左回転
-        node_type* rotateLeft(node_type* node);
+        /// Rotate left
+        s32 rotateLeft(s32 node);
 
-        typename node_type::base_type root_;
+        s32 create(value_type&& value);
+        void destroy(s32 node);
+
+        class Array
+        {
+        public:
+            Array()
+                :capacity_(0)
+                ,items_(NULL)
+            {}
+
+            const node_type& operator[](s32 index) const
+            {
+                TASSERT(0<=index && index<capacity_);
+                return items_[index];
+            }
+            node_type& operator[](s32 index)
+            {
+                TASSERT(0<=index && index<capacity_);
+                return items_[index];
+            }
+
+            s32 capacity_;
+            node_type* items_;
+        };
+        s32 size_;
+        s32 empty_;
+        Array nodes_;
+
+        s32 root_;
         allocator_type allocator_;
         comparator_type comparator_;
     };
@@ -181,7 +170,9 @@ namespace tree
     //---------------------------------------------------------------
     template<class T, class Allocator, class Comparator>
     AVLTree<T,Allocator,Comparator>::AVLTree()
-        :root_(NULL, NULL)
+        :size_(0)
+        ,empty_(-1)
+        ,root_(-1)
     {
     }
 
@@ -190,321 +181,373 @@ namespace tree
     AVLTree<T,Allocator,Comparator>::~AVLTree()
     {
         clear();
+        allocator_.free(nodes_.items_);
+        nodes_.items_ = NULL;
+        nodes_.capacity_ = 0;
+        empty_ = -1;
     }
 
     //---------------------------------------------------------------
     template<class T, class Allocator, class Comparator>
-    typename AVLTree<T,Allocator,Comparator>::pointer
-        AVLTree<T,Allocator,Comparator>::find(const value_type& value)
-    {
-        node_type* node = root_.right_;
-        while(NULL != node){
-            s32 cmp = comparator_(node->getValue(), value);
-            if(cmp == 0){
-                return &node->getValue();
-            }else if(cmp<0){
-                node = node->right_;
-            }else{
-                node = node->left_;
-            }
-        }
-        return NULL;
-    }
-
-    //---------------------------------------------------------------
-    template<class T, class Allocator, class Comparator>
-    typename AVLTree<T,Allocator,Comparator>::const_pointer
+    typename AVLTree<T,Allocator,Comparator>::iterator_type
         AVLTree<T,Allocator,Comparator>::find(const value_type& value) const
     {
-        const node_type* node = root_.right_;
-        while(NULL != node){
-            s32 cmp = comparator_(node->getValue(), value);
+        s32 node = root_;
+        while(0 <= node){
+            s32 cmp = comparator_(nodes_[node].value_, value);
             if(cmp == 0){
-                return &node->getValue();
+                return node;
             }else if(cmp<0){
-                node = node->right_;
+                node = nodes_[node].right_;
             }else{
-                node = node->left_;
+                node = nodes_[node].left_;
             }
         }
-        return NULL;
+        return node;
+    }
+
+    //---------------------------------------------------------------
+    template<class T, class Allocator, class Comparator>
+    typename AVLTree<T,Allocator,Comparator>::iterator_type
+        AVLTree<T,Allocator,Comparator>::end() const
+    {
+        return -1;
     }
 
     template<class T, class Allocator, class Comparator>
-    void AVLTree<T,Allocator,Comparator>::updateBalance(node_type* node)
+    const typename AVLTree<T, Allocator, Comparator>::value_type&
+        AVLTree<T, Allocator, Comparator>::get(iterator_type pos) const
     {
-        TASSERT(NULL != node);
-        if(1 == node->balance_){
-            node->left_->balance_ = 0;
-            node->right_->balance_ = -1;
-        }else if( -1 == node->balance_){
-            node->left_->balance_ = 1;
-            node->right_->balance_ = 0;
+        return nodes_[pos].value_;
+    }
+
+    template<class T, class Allocator, class Comparator>
+    typename AVLTree<T, Allocator, Comparator>::value_type&
+        AVLTree<T, Allocator, Comparator>::get(iterator_type pos)
+    {
+        return nodes_[pos].value_;
+    }
+
+    template<class T, class Allocator, class Comparator>
+    void AVLTree<T,Allocator,Comparator>::updateBalance(s32 node)
+    {
+        TASSERT(0 <= node);
+
+        s32 left = nodes_[node].left_;
+        s32 right = nodes_[node].right_;
+        TASSERT(0 <= left);
+        TASSERT(0 <= right);
+
+        if(1 == nodes_[node].balance_){
+            nodes_[left].balance_ = 0;
+            nodes_[right].balance_ = -1;
+
+        }else if( -1 == nodes_[node].balance_){
+            nodes_[left].balance_ = 1;
+            nodes_[right].balance_ = 0;
+
         }else{
-            node->left_->balance_ = 0;
-            node->right_->balance_ = 0;
+            nodes_[left].balance_ = 0;
+            nodes_[right].balance_ = 0;
         }
-        node->balance_ = 0;
+        nodes_[node].balance_ = 0;
     }
 
     template<class T, class Allocator, class Comparator>
-    void AVLTree<T,Allocator,Comparator>::insert(const value_type& value)
+    void AVLTree<T,Allocator,Comparator>::insert(value_type&& value)
     {
-        root_.right_ = insertInternal(root_.right_, value);
+        root_ = insertInternal(root_, tree::move(value));
     }
 
     template<class T, class Allocator, class Comparator>
     void AVLTree<T,Allocator,Comparator>::remove(const value_type& value)
     {
-        s32 numLevels = 1;
+        s32 numLevels = 0;
         Step path[MaxLevels];
-
-        path[0].node_ = static_cast<node_type*>(&root_);
-        path[0].which_ = AVLSub_Right;
-
-        node_type* n = findInternal(root_.right_, path, numLevels, value);
-        if(NULL == n){
+        s32 n = findInternal(root_, path, numLevels, value);
+        if(n<0){
             return;
         }
 
-        if(NULL == n->right_){
-            path[numLevels-1].node_->sub(path[numLevels-1].which_) = n->left_;
+        node_type& node = nodes_[n];
+        s32 left = node.left_;
+        s32 right = node.right_;
+
+        if(right<0){
+            if(0 < numLevels) {
+                nodes_[path[numLevels-1].node_].getSub(path[numLevels-1].which_) = left;
+            } else{
+                root_ = left;
+            }
+
         }else{
-            node_type* r = n->right_;
-            if(NULL == r->left_){
-                r->left_ = n->left_;
-                r->balance_ = n->balance_;
-                path[numLevels-1].node_->sub(path[numLevels-1].which_) = r;
-                path[numLevels].node_ = r;
+            if(nodes_[right].left_<0){
+                nodes_[right].left_ = node.left_;
+                nodes_[right].balance_ = node.balance_;
+
+                if(0 < numLevels) {
+                    nodes_[path[numLevels-1].node_].getSub(path[numLevels-1].which_) = right;
+                } else{
+                    root_ = right;
+                }
+
+
+                TASSERT(numLevels<MaxLevels);
+                path[numLevels].node_ = right;
                 path[numLevels].which_ = AVLSub_Right;
                 ++numLevels;
+
             }else{
-                node_type* left;
                 s32 l = numLevels++;
                 for(;;){
+                    TASSERT(numLevels<MaxLevels);
                     path[numLevels].which_ = AVLSub_Left;
-                    path[numLevels].node_ = r;
+                    path[numLevels].node_ = right;
                     ++numLevels;
-                    left = r->left_;
-                    if(NULL == left->left_){
+                    left = nodes_[right].left_;
+                    if(nodes_[left].left_<0){
                         break;
                     }
-                    r = left;
+                    right = left;
                 }
-                left->left_ = n->left_;
-                r->left_ = left->right_;
-                left->right_ = n->right_;
-                left->balance_ = n->balance_;
+                nodes_[left].left_ = node.left_;
+                nodes_[right].left_ = nodes_[left].right_;
 
-                path[l-1].node_->sub(path[l-1].which_) = left;
+                nodes_[left].right_ = node.right_;
+                nodes_[left].balance_ = node.balance_;
+
+                if(0 < l) {
+                    nodes_[path[l - 1].node_].getSub(path[l - 1].which_) = left;
+                } else{
+                    root_ = left;
+                }
                 path[l].which_ = AVLSub_Right;
                 path[l].node_ = left;
             }
         }
-        allocator_.destroy(n);
-
+        destroy(n);
         balanceRemove(path, numLevels);
+        --size_;
     }
 
     template<class T, class Allocator, class Comparator>
     void AVLTree<T,Allocator,Comparator>::clear()
     {
-        clearInternal(root_.right_);
+        clearInternal(root_);
+        root_ = -1;
+        size_ = 0;
+    }
+
+    template<class T, class Allocator, class Comparator>
+    void AVLTree<T, Allocator, Comparator>::swap(AVLTree& rhs)
+    {
+        tree::swap(size_, rhs.size_);
+        tree::swap(empty_, rhs.empty_);
+        tree::swap(nodes_.capacity_, rhs.nodes_.capacity_);
+        tree::swap(nodes_.items_, rhs.nodes_.items_);
+        tree::swap(root_, rhs.root_);
+        tree::swap(allocator_, rhs.allocator_);
+        tree::swap(comparator_, rhs.comparator_);
     }
 
     //---------------------------------------------------------------
     template<class T, class Allocator, class Comparator>
-    void AVLTree<T,Allocator,Comparator>::clearInternal(node_type*& node)
+    void AVLTree<T,Allocator,Comparator>::clearInternal(s32 node)
     {
-        if(NULL == node){
+        if(node<0){
             return;
         }
-        clearInternal(node->left_);
-        clearInternal(node->right_);
-        allocator_.destroy(node);
+        s32 left = nodes_[node].left_;
+        s32 right = nodes_[node].right_;
+
+        destroy(node);
+
+        clearInternal(left);
+        clearInternal(right);
     }
 
     template<class T, class Allocator, class Comparator>
-    typename AVLTree<T,Allocator,Comparator>::node_type*
-        AVLTree<T,Allocator,Comparator>::insertInternal(node_type* node, const value_type& value)
+    s32 AVLTree<T,Allocator,Comparator>::insertInternal(s32 node, value_type&& value)
     {
-        if(NULL == node){
-            // 挿入位置
-            return allocator_.create(value);
+        if(node<0){
+            return create(tree::move(value));
         }
         Step path[MaxLevels];
 
-        node_type* n = node;
         s32 level = 0;
+        s32 ni = node;
         for(;;){
-            s32 cmp = comparator_(n->getValue(), value);
+            node_type& n = nodes_[ni];
+            s32 cmp = comparator_(n.value_, value);
 
             if(0 == cmp){
                 return node;
 
             }else if(0<cmp){
                 TASSERT(level<MaxLevels);
-                path[level].node_ = n;
+                path[level].node_ = ni;
                 path[level].which_ = AVLSub_Left;
                 ++level;
-                if(NULL == n->left_){
-                    n->left_ = allocator_.create(value);
+                if(n.left_<0){
+                    nodes_[ni].left_ = create(tree::move(value));
                     break;
                 }
-                n = n->left_;
+                ni = n.left_;
 
             }else{
                 TASSERT(level<MaxLevels);
-                path[level].node_ = n;
+                path[level].node_ = ni;
                 path[level].which_ = AVLSub_Right;
                 ++level;
-                if(NULL == n->right_){
-                    n->right_ = allocator_.create(value);
+                if(n.right_<0){
+                    nodes_[ni].right_ = create(tree::move(value));
                     break;
                 }
-                n = n->right_;
+                ni = n.right_;
             }
         }
+        ++size_;
         return balanceInsert(node, path, level);
     }
 
     //---------------------------------------------------------------
     template<class T, class Allocator, class Comparator>
-    typename AVLTree<T,Allocator,Comparator>::node_type*
-        AVLTree<T,Allocator,Comparator>::balanceInsert(node_type* node, Step* path, s32 numLevels)
+    s32 AVLTree<T,Allocator,Comparator>::balanceInsert(s32 node, Step* path, s32 numLevels)
     {
-        node_type* newNode = NULL;
+        s32 newNode = -1;
         while(0<numLevels){
             --numLevels;
-            node_type* n = path[numLevels].node_;
+            s32 ni = path[numLevels].node_;
+            node_type& n = nodes_[ni];
             s32 which = path[numLevels].which_;
             if(AVLSub_Left == which){
-                ++n->balance_;
+                ++n.balance_;
             }else{
-                --n->balance_;
+                --n.balance_;
             }
-            s32 balance = n->balance_;
+            s32 balance = n.balance_;
             if(0==balance){
                 return node;
             }
             if(1<balance){
-                if(n->left_->balance_<0){
+                if(nodes_[n.left_].balance_<0){
                     //LR
-                    n->left_ = rotateLeft(n->left_);
-                    newNode = rotateRight(n);
+                    n.left_ = rotateLeft(n.left_);
+                    newNode = rotateRight(ni);
                     updateBalance(newNode);
                 }else{
                     //LL
-                    newNode = rotateRight(n);
-                    newNode->balance_ = 0;
-                    n->balance_ = 0;
+                    newNode = rotateRight(ni);
+                    nodes_[newNode].balance_ = 0;
+                    n.balance_ = 0;
                 }
                 break;
 
             }else if(balance<-1){
-                if(0<n->right_->balance_){
+                if(0<nodes_[n.right_].balance_){
                     //RL
-                    n->right_ = rotateRight(n->right_);
-                    newNode = rotateLeft(n);
+                    n.right_ = rotateRight(n.right_);
+                    newNode = rotateLeft(ni);
                     updateBalance(newNode);
                 }else{
                     //RR
-                    newNode = rotateLeft(n);
-                    newNode->balance_ = 0;
-                    n->balance_ = 0;
+                    newNode = rotateLeft(ni);
+                    nodes_[newNode].balance_ = 0;
+                    n.balance_ = 0;
                 }
                 break;
             }
         }//while(0<numLevels)
 
         if(0<numLevels){
-            path[numLevels-1].node_->sub(path[numLevels-1].which_) = newNode;
+            node_type& n = nodes_[path[numLevels-1].node_];
+            n.getSub(path[numLevels-1].which_) = newNode;
 
-        }else if(NULL != newNode){
+        }else if(0<=newNode){
             return newNode;
         }
         return node;
     }
 
     template<class T, class Allocator, class Comparator>
-    typename AVLTree<T,Allocator,Comparator>::node_type*
-        AVLTree<T,Allocator,Comparator>::findInternal(node_type* node, Step* path, s32& level, const value_type& value)
+    s32 AVLTree<T,Allocator,Comparator>::findInternal(s32 node, Step* path, s32& level, const value_type& value)
     {
-        while(NULL != node){
-            s32 cmp = comparator_(node->getValue(), value);
+        while(0 <= node){
+            s32 cmp = comparator_(nodes_[node].value_, value);
 
             if(0 == cmp){
                 return node;
-            }
-            if(0<cmp){
+
+            }else if(0<cmp){
                 TASSERT(level<MaxLevels);
                 path[level].node_ = node;
                 path[level].which_ = AVLSub_Left;
                 ++level;
-                node = node->left_;
+                node = nodes_[node].left_;
             }else{
                 TASSERT(level<MaxLevels);
                 path[level].node_ = node;
                 path[level].which_ = AVLSub_Right;
                 ++level;
-                node = node->right_;
+                node = nodes_[node].right_;
             }
         }
-        return NULL;
+        return node;
     }
 
     template<class T, class Allocator, class Comparator>
     void AVLTree<T,Allocator,Comparator>::balanceRemove(Step* path, s32 numLevels)
     {
         while(0<--numLevels){
-            node_type* newNode = NULL;
-            node_type* n = path[numLevels].node_;
+            s32 newNode = -1;
+            s32 ni = path[numLevels].node_;
+            node_type& n = nodes_[ni];
             s32 which = path[numLevels].which_;
             if(AVLSub_Left == which){
-                --n->balance_;
+                --n.balance_;
             }else{
-                ++n->balance_;
+                ++n.balance_;
             }
-            s32 balance = n->balance_;
+            s32 balance = n.balance_;
             if(1<balance){
-                if(n->left_->balance_<0){
+                if(nodes_[n.left_].balance_<0){
                     //LR
-                    n->left_ = rotateLeft(n->left_);
-                    newNode = rotateRight(n);
+                    n.left_ = rotateLeft(n.left_);
+                    newNode = rotateRight(ni);
                     updateBalance(newNode);
-                    path[numLevels-1].node_->sub( path[numLevels-1].which_ ) = newNode;
+                    nodes_[path[numLevels-1].node_].getSub( path[numLevels-1].which_ ) = newNode;
                 }else{
                     //LL
-                    newNode = rotateRight(n);
-                    path[numLevels-1].node_->sub( path[numLevels-1].which_ ) = newNode;
-                    if(0==newNode->balance_){
-                        newNode->balance_ = -1;
-                        n->balance_ = 1;
+                    newNode = rotateRight(ni);
+                    nodes_[path[numLevels-1].node_].getSub( path[numLevels-1].which_ ) = newNode;
+                    if(0==nodes_[newNode].balance_){
+                        nodes_[newNode].balance_ = -1;
+                        n.balance_ = 1;
                         break;
                     }else{
-                        newNode->balance_ = 0;
-                        n->balance_ = 0;
+                        nodes_[newNode].balance_ = 0;
+                        n.balance_ = 0;
                     }
                 }
 
             }else if(balance<-1){
-                if(0<n->right_->balance_){
+                if(0<nodes_[n.right_].balance_){
                     //RL
-                    n->right_ = rotateRight(n->right_);
-                    newNode = rotateLeft(n);
+                    n.right_ = rotateRight(n.right_);
+                    newNode = rotateLeft(ni);
                     updateBalance(newNode);
-                    path[numLevels-1].node_->sub( path[numLevels-1].which_ ) = newNode;
+                    nodes_[path[numLevels-1].node_].getSub( path[numLevels-1].which_ ) = newNode;
                 }else{
                     //RR
-                    newNode = rotateLeft(n);
-                    path[numLevels-1].node_->sub( path[numLevels-1].which_ ) = newNode;
-                    if(0 == newNode->balance_){
-                        newNode->balance_ = 1;
-                        n->balance_ = -1;
+                    newNode = rotateLeft(ni);
+                    nodes_[path[numLevels-1].node_].getSub( path[numLevels-1].which_ ) = newNode;
+                    if(0 == nodes_[newNode].balance_){
+                        nodes_[newNode].balance_ = 1;
+                        n.balance_ = -1;
                         break;
                     }else{
-                        newNode->balance_ = 0;
-                        n->balance_ = 0;
+                        nodes_[newNode].balance_ = 0;
+                        n.balance_ = 0;
                     }
                 }
 
@@ -517,16 +560,14 @@ namespace tree
     //---------------------------------------------------------------
     // 右回転
     template<class T, class Allocator, class Comparator>
-    typename AVLTree<T,Allocator,Comparator>::node_type*
-        AVLTree<T,Allocator,Comparator>::rotateRight(node_type* node)
+    s32 AVLTree<T,Allocator,Comparator>::rotateRight(s32 node)
     {
-        TASSERT(NULL != node);
+        TASSERT(0<=node);
+        s32 left = nodes_[node].left_;
+        TASSERT(0<=left); //Left subree should exist
 
-        node_type* left = node->left_;
-        TASSERT(NULL != left); //右回転する場合必ず存在
-
-        node->left_ = left->right_;
-        left->right_ = node;
+        nodes_[node].left_ = nodes_[left].right_;
+        nodes_[left].right_ = node;
 
         return left;
     }
@@ -535,41 +576,86 @@ namespace tree
     //---------------------------------------------------------------
     // 左回転
     template<class T, class Allocator, class Comparator>
-    typename AVLTree<T,Allocator,Comparator>::node_type*
-        AVLTree<T,Allocator,Comparator>::rotateLeft(node_type* node)
+    s32 AVLTree<T,Allocator,Comparator>::rotateLeft(s32 node)
     {
-        TASSERT(NULL != node);
+        TASSERT(0<=node);
+        s32 right = nodes_[node].right_;
+        TASSERT(0<=right); //Right subree should exist
 
-        node_type* right = node->right_;
-        TASSERT(NULL != right); //左回転する場合必ず存在
-
-        node->right_ = right->left_;
-        right->left_ = node;
+        nodes_[node].right_ = nodes_[right].left_;
+        nodes_[right].left_ = node;
 
         return right;
     }
 
 
+    template<class T, class Allocator, class Comparator>
+    s32 AVLTree<T, Allocator, Comparator>::create(value_type&& value)
+    {
+        if(empty_<0) {
+            s32 capacity = nodes_.capacity_ + 16;
+            node_type* nodes = allocator_.malloc<node_type>(sizeof(node_type)*capacity);
+
+            //Copy old nodes to new nodes
+            for(s32 i=0; i<nodes_.capacity_; ++i){
+                TPLACEMENT_NEW(&nodes[i].value_) value_type(tree::move(nodes_[i].value_));
+                nodes[i].balance_ = nodes_[i].balance_;
+                nodes[i].left_ = nodes_[i].left_;
+                nodes[i].right_ = nodes_[i].right_;
+            }
+
+            //Initialize new nodes with default constructor
+            for(s32 i=nodes_.capacity_; i<capacity; ++i){
+                TPLACEMENT_NEW(&nodes[i].value_) value_type();
+                nodes[i].balance_ = i+1;
+            }
+            nodes[capacity-1].balance_ = empty_;
+            empty_ = nodes_.capacity_;
+            allocator_.free(nodes_.items_);
+            nodes_.capacity_ = capacity;
+            nodes_.items_ = nodes;
+        }
+        s32 result = empty_;
+        empty_ = nodes_[result].balance_;
+        nodes_[result].balance_ = 0;
+        nodes_[result].left_ = -1;
+        nodes_[result].right_ = -1;
+        nodes_[result].value_ = tree::move(value);
+        return result;
+    }
+
+    template<class T, class Allocator, class Comparator>
+    void AVLTree<T, Allocator, Comparator>::destroy(s32 node)
+    {
+        nodes_[node].value_.~T();
+        nodes_[node].balance_ = empty_;
+        nodes_[node].left_ = -1;
+        nodes_[node].right_ = -1;
+        empty_ = node;
+    }
+
+#ifdef TREE_AVLTREE_ENABLE_DEBUGPRINT
     //---------------------------------------------------------------
     template<class T, class Allocator, class Comparator>
     void AVLTree<T,Allocator,Comparator>::print()
     {
-        printInternal(root_.right_, 0);
+        printInternal(root_, 0);
     }
 
     //---------------------------------------------------------------
     template<class T, class Allocator, class Comparator>
-    void AVLTree<T,Allocator,Comparator>::printInternal(const node_type* node, s32 level) const
+    void AVLTree<T,Allocator,Comparator>::printInternal(s32 node, s32 level) const
     {
-        if(NULL == node){
+        if(node<0){
             return;
         }
-        printInternal(node->left_, level+1);
+        printInternal(nodes_[node].left_, level+1);
         for(s32 i=0; i<level; ++i){
             std::cout << ' ';
         }
-        std::cout << node->value_ << std::endl;
-        printInternal(node->right_, level+1);
+        std::cout << nodes_[node].value_ << std::endl;
+        printInternal(nodes_[node].right_, level+1);
     }
+#endif
 }
-#endif //INC_TREE_AVLTREE_H__
+#endif //INC_TREE_AVLTREE_H_

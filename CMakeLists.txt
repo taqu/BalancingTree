@@ -12,7 +12,7 @@ set(CMAKE_CONFIGURATION_TYPES "Debug" "Release")
 
 include_directories(AFTER ${CMAKE_CURRENT_SOURCE_DIR})
 
-set(FILES "main.cpp;AVLTree.h;common.h")
+set(FILES "main.cpp;TestAVL.cpp;AVLTree.h;common.h")
 
 add_executable(${ProjectName} ${FILES})
 
